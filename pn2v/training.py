@@ -262,13 +262,31 @@ def lossFunctionPN2V(samples, labels, masks, noiseModel):
     '''
     The loss function as described in Eq. 7 of the paper.
     '''
-    
+    # likelihoods=noiseModel.likelihood(labels,samples)
+    # likelihoods_avg=torch.log(torch.mean(likelihoods,dim=0,keepdim=True)[0,...] )
 
-    likelihoods=noiseModel.likelihood(labels,samples)
-    likelihoods_avg=torch.log(torch.mean(likelihoods,dim=0,keepdim=True)[0,...] )
+    # # Average over pixels and batch
+    # loss= -torch.sum( likelihoods_avg *masks  ) /torch.sum(masks)
+    # return loss
 
-    # Average over pixels and batch
-    loss= -torch.sum( likelihoods_avg *masks  ) /torch.sum(masks)
+    log_clean = samples
+    noisy = labels
+    a = 1.0/4096.0
+    """
+    Equation 7 of Probabalistic Noise2Void
+    Args:
+        noisy: noisy input ~ Poisson(clean/a)
+        log_clean: prior estimates of unscaled clean signal
+        a: noise level
+    """    
+    # poisson rate (lambda) and k parameters
+    k = noisy / a
+    log_a = torch.log(a)
+    # log of terms of summation over samples
+    log_summation_terms = -torch.exp(torch.clip(log_clean-log_a,-64,64)) + k*(log_clean-log_a) - torch.lgamma(k+1)
+    log_prob = -torch.logsumexp(log_summation_terms,axis=-1)
+    # sum over pixels
+    loss = torch.mean(log_prob)
     return loss
 
 
