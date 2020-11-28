@@ -290,15 +290,17 @@ def lossFunctionPN2V(samples, labels, masks, noiseModel):
     return loss
 
 
-def lossFunction(samples, labels, masks, noiseModel, pn2v, std=None):
+def lossFunction(samples, labels, masks, pn2v, std=None):
     if pn2v:
-        return lossFunctionPN2V(samples, labels, masks, noiseModel)
+        return lossFunctionPN2V(samples, labels, masks)
     else:
         return lossFunctionN2V(samples, labels, masks)/(std**2)
 
 
 
-def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
+def trainNetwork(net, trainData, valData, 
+                 #noiseModel, 
+                 postfix, device,
                  directory='.',
                  numOfEpochs=200, stepsPerEpoch=50,
                  batchSize=4, patchSize=100, learningRate=0.0001,
@@ -357,7 +359,8 @@ def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
         
     # Calculate mean and std of data.
     # Everything that is processed by the net will be normalized and denormalized using these numbers.
-    combined=np.concatenate((trainData,valData))
+    train_sample = np.concatenate([trainData() for i in range(10)]) # since it is a generator, just sample 10 batches
+    combined=np.concatenate((train_sample,valData))
     net.mean=np.mean(combined)
     net.std=np.std(combined)
     
@@ -373,7 +376,7 @@ def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
     trainHist=[]
     valHist=[]
         
-    pn2v= (noiseModel is not None) and (not supervised)
+    pn2v = (not supervised)
     
     while stepCounter / stepsPerEpoch < numOfEpochs:  # loop over the dataset multiple times
         losses=[]
@@ -391,7 +394,7 @@ def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
                                                                device,
                                                                augment = augment,
                                                                supervised = supervised)
-            loss=lossFunction(outputs, labels, masks, noiseModel, pn2v, net.std)
+            loss=lossFunction(outputs, labels, masks, pn2v, net.std)
             loss.backward()
             running_loss += loss.item()
             losses.append(loss.item())
@@ -421,7 +424,7 @@ def trainNetwork(net, trainData, valData, noiseModel, postfix, device,
                                                                   device,
                                                                   augment = augment,
                                                                   supervised = supervised)
-                loss=lossFunction(outputs, labels, masks, noiseModel, pn2v, net.std)
+                loss=lossFunction(outputs, labels, masks, pn2v, net.std)
                 losses.append(loss.item())
             net.train(True)
             avgValLoss=np.mean(losses)
