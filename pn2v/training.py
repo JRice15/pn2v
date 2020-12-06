@@ -73,21 +73,22 @@ def randomCropFRI(data, size, numPix, supervised=False, counter=None, augment=Tr
         When the counter reaches the end of the dataset, it is reset to zero and the dataset is shuffled.
     '''
     
-    if counter is None:
-        index=np.random.randint(0, data.shape[0])
-    else:
-        if counter>=data.shape[0]:
-            counter=0
-            np.random.shuffle(data)
-        index=counter
-        counter+=1
+    # if counter is None:
+    #     index=np.random.randint(0, data.shape[0])
+    # else:
+    #     if counter>=data.shape[0]:
+    #         counter=0
+    #         np.random.shuffle(data)
+    #     index=counter
+    #     counter+=1
 
     if supervised:
+        raise NotImplementedError()
         img=data[index,...,0]
         imgClean=data[index,...,1]
         manipulate=False
     else:
-        img=data[index]
+        img, _ = data.__next__()
         imgClean=img
         manipulate=True
         
@@ -258,7 +259,7 @@ def lossFunctionN2V(samples, labels, masks):
     loss= torch.sum( errors *masks  ) /torch.sum(masks)
     return loss
 
-def lossFunctionPN2V(samples, labels, masks, noiseModel):
+def lossFunctionPN2V(samples, labels, masks):
     '''
     The loss function as described in Eq. 7 of the paper.
     '''
@@ -286,7 +287,7 @@ def lossFunctionPN2V(samples, labels, masks, noiseModel):
     log_summation_terms = -torch.exp(torch.clip(log_clean-log_a,-64,64)) + k*(log_clean-log_a) - torch.lgamma(k+1)
     log_prob = -torch.logsumexp(log_summation_terms,axis=-1)
     # sum over pixels
-    loss = torch.mean(log_prob)
+    loss = torch.mean(log_prob * masks) / torch.sum(masks)
     return loss
 
 
