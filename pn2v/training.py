@@ -359,7 +359,10 @@ def trainNetwork(net, trainData, valData,
         
     # Calculate mean and std of data.
     # Everything that is processed by the net will be normalized and denormalized using these numbers.
-    train_sample = np.concatenate([trainData() for i in range(10)]) # since it is a generator, just sample 10 batches
+    import itertools
+    train_sample = np.concatenate([i[0] for i in itertools.islice(trainData, 10)]) # since it is a generator, just sample 10 batches
+    print("train sample shape:", train_sample.shape)
+    print("valdata shape:", valData.shape)
     combined=np.concatenate((train_sample,valData))
     net.mean=np.mean(combined)
     net.std=np.std(combined)

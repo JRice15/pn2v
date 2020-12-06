@@ -1,4 +1,4 @@
-
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -28,7 +28,7 @@ parser.add_argument('--lr',type=float,default=0.0003,help='learning rate')
 
 args = parser.parse_args()
 
-if args.mode != "samplepoission":
+if args.mode != "samplepoisson":
     raise ValueError("Only support samplepoisson mode")
 
 
