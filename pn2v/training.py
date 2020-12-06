@@ -228,7 +228,7 @@ def trainingPred(my_train_data, net, dataCounter, size, bs, numPix, device, augm
     # Assemble mini batch
     # for j in range(bs):
     batch_x, batch_y = my_train_data.__next__()
-    for x in batch_x:
+    for j,x in enumerate(batch_x):
         # im,l,m, dataCounter=randomCropFRI(my_train_data,
         im,l,m = randomCropFRI(x,
                                 size,
