@@ -114,7 +114,7 @@ trainHist, valHist = training.trainNetwork(net=net, trainData=train_generator, v
                                            patchSize=args.crop,
                                            device=device, numOfEpochs= 200, 
                                            stepsPerEpoch=5, virtualBatchSize=20,
-                                           batchSize=1, learningRate=1e-3)
+                                           batchSize=args.batch, learningRate=1e-3)
 
 
 # %%

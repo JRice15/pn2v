@@ -9,6 +9,7 @@ from torch.nn import init
 import numpy as np
 import matplotlib.pyplot as plt
 import torchvision
+import itertools
 
 from pn2v import utils
 
@@ -88,7 +89,7 @@ def randomCropFRI(data, size, numPix, supervised=False, counter=None, augment=Tr
         imgClean=data[index,...,1]
         manipulate=False
     else:
-        img, _ = data.__next__()
+        img = data
         imgClean=img
         manipulate=True
         
@@ -225,14 +226,16 @@ def trainingPred(my_train_data, net, dataCounter, size, bs, numPix, device, augm
    
 
     # Assemble mini batch
-    for j in range(bs):
+    # for j in range(bs):
+    batch_x, batch_y = my_train_data.__next__()
+    for x in batch_x:
         # im,l,m, dataCounter=randomCropFRI(my_train_data,
-        im,l,m = randomCropFRI(my_train_data,
-                                          size,
-                                          numPix,
-                                          counter=dataCounter,
-                                          augment=augment,
-                                          supervised=supervised)
+        im,l,m = randomCropFRI(x,
+                                size,
+                                numPix,
+                                counter=dataCounter,
+                                augment=augment,
+                                supervised=supervised)
         inputs[j,:,:,:]=utils.imgToTensor(im)
         labels[j,:,:]=utils.imgToTensor(l)
         masks[j,:,:]=utils.imgToTensor(m)
@@ -251,7 +254,7 @@ def trainingPred(my_train_data, net, dataCounter, size, bs, numPix, device, augm
     # Denormalize
     samples = samples * stdTorch + meanTorch
     
-    return samples, labels, masks, dataCounter
+    return samples, labels, masks
 
 def lossFunctionN2V(samples, labels, masks):
     '''
@@ -365,8 +368,7 @@ def trainNetwork(net, trainData, valData,
         
     # Calculate mean and std of data.
     # Everything that is processed by the net will be normalized and denormalized using these numbers.
-    import itertools
-    train_sample = np.concatenate([i[0] for i in itertools.islice(trainData, 10)]) # since it is a generator, just sample 10 batches
+    train_sample = np.concatenate([i[0] for i in itertools.islice(trainData, 100)]) # since it is a generator, just sample 100 batches
     print("train sample shape:", train_sample.shape)
     print("valdata shape:", valData.shape)
     combined=np.concatenate((train_sample,valData))
