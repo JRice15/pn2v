@@ -97,7 +97,7 @@ def randomCropFRI(data, size, numPix, supervised=False, counter=None, augment=Tr
                                       augment=augment,
                                       manipulate = manipulate )
     
-    return imgOut, imgOutC, mask, counter
+    return imgOut, imgOutC, mask
 
 def randomCrop(img, size, numPix, imgClean=None, augment=True, manipulate=True):
     '''
@@ -130,14 +130,18 @@ def randomCrop(img, size, numPix, imgClean=None, augment=True, manipulate=True):
         In N2V or PN2V only these pixels should be used to calculate gradients.
     '''
     
-    assert img.shape[0] >= size
-    assert img.shape[1] >= size
+    # NOTE: the data is now cropped in the train_generator, so no need to crop here
 
-    x = np.random.randint(0, img.shape[1] - size)
-    y = np.random.randint(0, img.shape[0] - size)
+    # assert img.shape[0] >= size
+    # assert img.shape[1] >= size
 
-    imgOut = img[y:y+size, x:x+size].copy()
-    imgOutC= imgClean[y:y+size, x:x+size].copy()
+    # x = np.random.randint(0, img.shape[1] - size)
+    # y = np.random.randint(0, img.shape[0] - size)
+
+    # imgOut = img[y:y+size, x:x+size].copy()
+    # imgOutC= imgClean[y:y+size, x:x+size].copy()
+    imgOut = img.copy()
+    imgOutC = imgClean.copy()
     
     maxA=imgOut.shape[1]-1
     maxB=imgOut.shape[0]-1
@@ -222,7 +226,8 @@ def trainingPred(my_train_data, net, dataCounter, size, bs, numPix, device, augm
 
     # Assemble mini batch
     for j in range(bs):
-        im,l,m, dataCounter=randomCropFRI(my_train_data,
+        # im,l,m, dataCounter=randomCropFRI(my_train_data,
+        im,l,m = randomCropFRI(my_train_data,
                                           size,
                                           numPix,
                                           counter=dataCounter,
@@ -389,7 +394,8 @@ def trainNetwork(net, trainData, valData,
 
         # Loop over our virtual batch
         for a in range (virtualBatchSize):
-            outputs, labels, masks, dataCounter = trainingPred(trainData,
+            # outputs, labels, masks, dataCounter = trainingPred(trainData,
+            outputs, labels, masks = trainingPred(trainData,
                                                                net,
                                                                dataCounter,
                                                                patchSize, 
@@ -419,7 +425,8 @@ def trainNetwork(net, trainData, valData,
             net.train(False)
             losses=[]
             for i in range(valSize):
-                outputs, labels, masks, valCounter = trainingPred(valData,
+                # outputs, labels, masks, valCounter = trainingPred(valData,
+                outputs, labels, masks = trainingPred(valData,
                                                                   net,
                                                                   valCounter,
                                                                   patchSize, 

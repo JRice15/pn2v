@@ -111,6 +111,7 @@ os.makedirs("output", exist_ok=True)
 trainHist, valHist = training.trainNetwork(net=net, trainData=train_generator, valData=val_sinograms,
                                            postfix='conv', directory="output", 
                                            #noiseModel=noiseModel,
+                                           patchSize=args.crop,
                                            device=device, numOfEpochs= 200, 
                                            stepsPerEpoch=5, virtualBatchSize=20,
                                            batchSize=1, learningRate=1e-3)
