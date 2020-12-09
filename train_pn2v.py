@@ -112,8 +112,10 @@ trainHist, valHist = training.trainNetwork(net=net, trainData=train_generator, v
                                            postfix='conv', directory="output", 
                                            #noiseModel=noiseModel,
                                            patchSize=args.crop,
+                                           numMaskedPixels=(args.crop*args.crop//32),
                                            device=device, numOfEpochs= 200, 
                                            stepsPerEpoch=5, virtualBatchSize=20,
+                                           valSize=len(val_sinograms),
                                            batchSize=args.batch, learningRate=1e-3)
 
 
