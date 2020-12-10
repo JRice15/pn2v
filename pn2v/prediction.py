@@ -4,6 +4,7 @@
 
 import numpy as np
 import torch
+import math
 
 from pn2v.utils import imgToTensor
 from pn2v.utils import denormalize
@@ -40,7 +41,7 @@ def predict(im, net, noiseModel, device, outScaling):
     #im=(im-net.mean)/net.std
     
     inputs_raw= torch.zeros(1,1,im.shape[0],im.shape[1])
-    inputs_raw[0,:,:,:]=imgToTensor(im);
+    inputs_raw[0,:,:,:]=imgToTensor(im)
 
     # copy to GPU
     inputs_raw = inputs_raw.to(device)
@@ -61,17 +62,44 @@ def predict(im, net, noiseModel, device, outScaling):
     if noiseModel is not None:
         
         # call likelihood using denormalized observations and samples
-        likelihoods=noiseModel.likelihood(inputs_raw ,samples )
+        # likelihoods=noiseModel.likelihood(inputs_raw, samples)
 
 
-        mseEst = torch.sum(likelihoods*samples,dim=0,keepdim=True)[0,...] # Sum up over all samples
-        mseEst/= torch.sum(likelihoods,dim=0,keepdim=True)[0,...] # Normalize
+        # mseEst = torch.sum(likelihoods*samples,dim=0,keepdim=True)[0,...] # Sum up over all samples
+        # mseEst/= torch.sum(likelihoods,dim=0,keepdim=True)[0,...] # Normalize
 
-        # Get data from GPU
-        mseEst=mseEst.cpu().detach().numpy()
-        mseEst.shape=(output.shape[2],output.shape[3])
-        return means,mseEst
+        # # Get data from GPU
+        # mseEst=mseEst.cpu().detach().numpy()
+        # mseEst.shape=(output.shape[2],output.shape[3])
+        # return means,mseEst
     
+        noisy_sinogram = inputs_raw
+
+        minval = 0.1 / 4096
+        a = 1000.0/4096.0
+        log_a = math.log(a)
+        log_clean = torch.squeeze(samples)
+        k = torch.squeeze(noisy_sinogram)[...,None] / a
+
+        # log of poisson pdf
+        log_r = log_clean - log_a
+        r = torch.exp(torch.clip(log_r,-64,64))
+        log_summation_terms = -r + k*(log_r) - torch.lgamma(k+1)
+
+        # mmse equation
+        log_numerator = torch.lgamma(log_summation_terms + log_r, dim=0)
+        log_denominator = torch.lgamma(log_summation_terms, dim=0)
+        denoised_sinogram = torch.exp(torch.clip(log_numerator-log_denominator, -64, 64))
+
+        # preparing
+        denoised_sinogram = torch.squeeze(denoised_sinogram)
+        denoised_sinogram /= 1000
+        denoised_sinogram = torch.clip(denoised_sinogram,minval,np.inf)
+
+        denoised_sinogram = denoised_sinogram.cpu().detach().numpy()
+
+        return means, denoised_sinogram
+
     else:
         return means, None
 
@@ -238,7 +266,14 @@ def tiledPredict_reflect(im, net, ps, overlap, noiseModel, device, outScaling=10
             xmin_ = min(im.shape[1], xmax)-ps
             lastPatchShiftY = ymin-ymin_
             lastPatchShiftX = xmin-xmin_  
-            a,b = predict(im[ymin_:ymax,xmin_:xmax], net, noiseModel, device, outScaling=outScaling)
+
+            a,b = predict(
+                        im[ymin_:ymax,xmin_:xmax], 
+                        net, 
+                        noiseModel, 
+                        device, 
+                        outScaling=outScaling)
+
             means[ymin:ymax,xmin:xmax][ovTop:,ovLeft:] = a[lastPatchShiftY:,lastPatchShiftX:][ovTop:,ovLeft:]
             if noiseModel is not None:
                 mseEst[ymin:ymax,xmin:xmax][ovTop:,ovLeft:] = b[lastPatchShiftY:,lastPatchShiftX:][ovTop:,ovLeft:]
