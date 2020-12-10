@@ -130,6 +130,7 @@ for index,(im,gt) in enumerate(test_generator):
     resultImgs.append(mseEst)
     inputImgs.append(im)
 
+    print(means.shape, im.shape, mseEst.shape, gt.shape)
     rangePSNR=np.max(gt)-np.min(gt)
     psnr=PSNR(gt, mseEst,rangePSNR )
     psnrPrior=PSNR(gt, means,rangePSNR )

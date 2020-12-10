@@ -79,7 +79,7 @@ def predict(im, net, noiseModel, device, outScaling):
         a = 1000.0/4096.0
         log_a = math.log(a)
         log_clean = torch.squeeze(samples)
-        k = torch.squeeze(noisy_sinogram)[...,None] / a
+        k = torch.squeeze(noisy_sinogram)[None,...] / a
 
         # log of poisson pdf
         log_r = log_clean - log_a
@@ -87,8 +87,8 @@ def predict(im, net, noiseModel, device, outScaling):
         log_summation_terms = -r + k*(log_r) - torch.lgamma(k+1)
 
         # mmse equation
-        log_numerator = torch.lgamma(log_summation_terms + log_r, dim=0)
-        log_denominator = torch.lgamma(log_summation_terms, dim=0)
+        log_numerator = torch.logsumexp(log_summation_terms + log_r, dim=0)
+        log_denominator = torch.logsumexp(log_summation_terms, dim=0)
         denoised_sinogram = torch.exp(torch.clip(log_numerator-log_denominator, -64, 64))
 
         # preparing
