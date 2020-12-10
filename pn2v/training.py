@@ -1,5 +1,6 @@
 import torch.optim as optim
 import os
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -227,8 +228,7 @@ def trainingPred(my_train_data, net, dataCounter, size, bs, numPix, device, augm
 
     # Assemble mini batch
     # for j in range(bs):
-    batch_x, batch_y = my_train_data.__next__()
-    for j,x in enumerate(batch_x):
+    for j,x in enumerate(my_train_data):
         # im,l,m, dataCounter=randomCropFRI(my_train_data,
         im,l,m = randomCropFRI(x,
                                 size,
@@ -236,9 +236,9 @@ def trainingPred(my_train_data, net, dataCounter, size, bs, numPix, device, augm
                                 counter=dataCounter,
                                 augment=augment,
                                 supervised=supervised)
-        inputs[j,:,:,:]=utils.imgToTensor(im)
-        labels[j,:,:]=utils.imgToTensor(l)
-        masks[j,:,:]=utils.imgToTensor(m)
+        inputs[j,...]=utils.imgToTensor(im)
+        labels[j,...]=utils.imgToTensor(l)
+        masks[j,...]=utils.imgToTensor(m)
 
     # Move to GPU
     inputs_raw, labels, masks= inputs.to(device), labels.to(device), masks.to(device)
@@ -280,7 +280,7 @@ def lossFunctionPN2V(samples, labels, masks):
 
     log_clean = samples
     noisy = labels
-    a = 1.0/4096.0
+    a = 1000.0/4096.0
     """
     Equation 7 of Probabalistic Noise2Void
     Args:
@@ -290,13 +290,14 @@ def lossFunctionPN2V(samples, labels, masks):
     """    
     # poisson rate (lambda) and k parameters
     k = noisy / a
-    log_a = torch.log(a)
+    log_a = math.log(a)
     # log of terms of summation over samples
     log_summation_terms = -torch.exp(torch.clip(log_clean-log_a,-64,64)) + k*(log_clean-log_a) - torch.lgamma(k+1)
-    log_prob = -torch.logsumexp(log_summation_terms,axis=-1)
+    # for torch: channels are first axis here
+    log_prob = -torch.logsumexp(log_summation_terms,dim=0)
     # sum over pixels
     loss = torch.mean(log_prob * masks) / torch.sum(masks)
-    return loss
+    return loss / 1000.0
 
 
 def lossFunction(samples, labels, masks, pn2v, std=None):
@@ -374,6 +375,9 @@ def trainNetwork(net, trainData, valData,
     combined=np.concatenate((train_sample,valData))
     net.mean=np.mean(combined)
     net.std=np.std(combined)
+   
+    # free some memory
+    del train_sample
     
     net.to(device)
     
@@ -394,23 +398,28 @@ def trainNetwork(net, trainData, valData,
         optimizer.zero_grad()
         stepCounter+=1
 
+        print("Epoch", int(stepCounter / stepsPerEpoch))
+        print("")
         # Loop over our virtual batch
         for a in range (virtualBatchSize):
             # outputs, labels, masks, dataCounter = trainingPred(trainData,
-            outputs, labels, masks = trainingPred(trainData,
-                                                               net,
-                                                               dataCounter,
-                                                               patchSize, 
-                                                               batchSize,
-                                                               numMaskedPixels,
-                                                               device,
-                                                               augment = augment,
-                                                               supervised = supervised)
+            batch_x, _batch_y = trainData.__next__()
+            outputs, labels, masks = trainingPred(batch_x,
+                                                   net,
+                                                   dataCounter,
+                                                   patchSize, 
+                                                   batchSize,
+                                                   numMaskedPixels,
+                                                   device,
+                                                   augment = augment,
+                                                   supervised = supervised)
             loss=lossFunction(outputs, labels, masks, pn2v, net.std)
             loss.backward()
             running_loss += loss.item()
             losses.append(loss.item())
+            print("\rloss:", loss.item(), " "*10, end="", flush=True)
 
+        print()
         optimizer.step()
 
         # We have reached the end of an epoch
@@ -426,21 +435,26 @@ def trainNetwork(net, trainData, valData,
             valCounter=0
             net.train(False)
             losses=[]
-            for i in range(valSize):
+            
+            for i in range(0, valSize, batchSize):
                 # outputs, labels, masks, valCounter = trainingPred(valData,
-                outputs, labels, masks = trainingPred(valData,
-                                                                  net,
-                                                                  valCounter,
-                                                                  patchSize, 
-                                                                  batchSize,
-                                                                  numMaskedPixels,
-                                                                  device,
-                                                                  augment = augment,
-                                                                  supervised = supervised)
+                valBatch = valData[i:i+batchSize]
+                outputs, labels, masks = trainingPred(valBatch,
+                                                      net,
+                                                      valCounter,
+                                                      patchSize, 
+                                                      batchSize,
+                                                      numMaskedPixels,
+                                                      device,
+                                                      augment = augment,
+                                                      supervised = supervised)
                 loss=lossFunction(outputs, labels, masks, pn2v, net.std)
                 losses.append(loss.item())
+                print("\rval loss:", loss.item(), " "*10, end="", flush=True)
+            print()
             net.train(True)
             avgValLoss=np.mean(losses)
+            print("avg. val loss:", avgValLoss)
             if len(valHist)==0 or avgValLoss < np.min(np.array(valHist)):
                 torch.save(net,os.path.join(directory,"best_"+postfix+".net"))
             valHist.append(avgValLoss)
