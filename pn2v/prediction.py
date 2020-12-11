@@ -41,7 +41,7 @@ def predict(im, net, noiseModel, device, outScaling):
     #im=(im-net.mean)/net.std
     
     inputs_raw= torch.zeros(1,1,im.shape[0],im.shape[1])
-    inputs_raw[0,:,:,:]=imgToTensor(im)
+    inputs_raw[0,:,:,:]=torch.reshape(torch.Tensor(im), (1,)+im.shape)
 
     # copy to GPU
     inputs_raw = inputs_raw.to(device)

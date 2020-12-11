@@ -68,7 +68,7 @@ def load_sinograms():
     for noisy_sinogram, gt_reconstruction in gen:
         # pad sinogram to be a multiple of 32
         #noisy_sinogram = np.pad(noisy_sinogram, ((0, pad_bottom), (0, pad_right)), 'constant')
-        noisy_sinogram = np.pad(noisy_sinogram, ((pad_top, pad_bottom), (pad_left, pad_right)), 'symmetric')
+        #noisy_sinogram = np.pad(noisy_sinogram, ((pad_top, pad_bottom), (pad_left, pad_right)), 'symmetric')
         #imwrite('noisy_sinogram.tiff',noisy_sinogram)
         #sys.exit(0)
 
@@ -130,7 +130,6 @@ for index,(im,gt) in enumerate(test_generator):
     resultImgs.append(mseEst)
     inputImgs.append(im)
 
-    print(means.shape, im.shape, mseEst.shape, gt.shape)
     rangePSNR=np.max(gt)-np.min(gt)
     psnr=PSNR(gt, mseEst,rangePSNR )
     psnrPrior=PSNR(gt, means,rangePSNR )
@@ -142,8 +141,11 @@ for index,(im,gt) in enumerate(test_generator):
     print ("PSNR prior",psnrPrior) # Without info from masked pixel
     print ("PSNR mse",psnr) # MMSE estimate using the masked pixel
     print ('-----------------------------------')
+    print(im.shape, gt.shape, means.shape, mseEst.shape)
 
-    noisy_sinogram = np.squeeze(noisy_sinogram)#*maxval
+    noisy_sinogram = np.squeeze(im)#*maxval
+    denoised_sinogram = mseEst
+    gt_sinogram = gt
 
     imwrite(os.path.join(results_path,'%04d_noisy_prelog_sinogram.tif'%index),noisy_sinogram)
     imwrite(os.path.join(results_path,'%04d_denoised_prelog_sinogram.tif'%index),denoised_sinogram)
